@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ReplyRadar - Find quality tweets to reply to manually">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>ReplyRadar - Tweet Discovery Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <div class="bg-blue-600 text-white p-4 shadow">
+            <div class="max-w-6xl mx-auto">
+                <h1 class="text-2xl font-bold">ReplyRadar</h1>
+                <p class="text-sm text-blue-100">Find quality tweets to reply to</p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="bg-white border-b">
+            <div class="max-w-6xl mx-auto flex">
+                <button onclick="showView('search')" id="nav-search" class="flex-1 p-4 border-b-2 border-blue-600 text-blue-600 font-medium">
+                    Search
+                </button>
+                <button onclick="showView('queue')" id="nav-queue" class="flex-1 p-4 text-gray-600 font-medium">
+                    Queue (<span id="queue-count">0</span>)
+                </button>
+            </div>
+        </div>
+
+        <div class="max-w-6xl mx-auto p-4">
+            <!-- Search View -->
+            <div id="view-search">
+                <!-- Search Form -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h2 class="text-xl font-bold mb-4">Find Tweets</h2>
+                    
+                    <!-- Keyword Input -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Keywords or Phrases</label>
+                        <input 
+                            type="text" 
+                            id="search-keywords" 
+                            placeholder="e.g., react, typescript, web development"
+                            class="w-full p-3 border rounded-lg"
+                        >
+                        <p class="text-xs text-gray-500 mt-1">Comma separated. Will search for tweets containing ANY of these.</p>
+                    </div>
+
+                    <!-- Quick Keyword Packs -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Quick Packs</label>
+                        <div class="flex flex-wrap gap-2" id="quick-packs"></div>
+                    </div>
+
+                    <!-- Filters Grid -->
+                    <div class="grid md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Max Age (minutes)</label>
+                            <input 
+                                type="number" 
+                                id="filter-age" 
+                                value="90" 
+                                min="15"
+                                max="720"
+                                class="w-full p-3 border rounded-lg"
+                            >
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Min Likes</label>
+                            <input 
+                                type="number" 
+                                id="filter-likes" 
+                                value="5" 
+                                min="0"
+                                class="w-full p-3 border rounded-lg"
+                            >
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Max Replies</label>
+                            <input 
+                                type="number" 
+                                id="filter-replies" 
+                                value="2" 
+                                min="0"
+                                class="w-full p-3 border rounded-lg"
+                            >
+                            <p class="text-xs text-gray-500 mt-1">Low replies = less crowded</p>
+                        </div>
+                    </div>
+
+                    <!-- Additional Filters -->
+                    <div class="space-y-3 mb-6">
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="filter-exclude-replies" checked class="rounded">
+                            <span class="text-sm">Exclude replies (original tweets only)</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="filter-exclude-retweets" checked class="rounded">
+                            <span class="text-sm">Exclude retweets</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" id="filter-verified" class="rounded">
+                            <span class="text-sm">Verified accounts only</span>
+                        </label>
+                    </div>
+
+                    <!-- Search Buttons -->
+                    <div class="grid md:grid-cols-2 gap-3">
+                        <button onclick="generateAndCopyQuery()" class="bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700">
+                            📋 Copy Search Query
+                        </button>
+                        <button onclick="openSearchInX()" class="bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700">
+                            🔗 Open in X
+                        </button>
+                    </div>
+
+                    <div id="search-message" class="mt-4 hidden"></div>
+                </div>
+
+                <!-- Add URLs -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-bold mb-3">Add Tweet URLs to Queue</h3>
+                    <p class="text-sm text-gray-600 mb-3">After searching on X, paste tweet URLs here (one per line)</p>
+                    <textarea 
+                        id="bulk-urls" 
+                        rows="6"
+                        placeholder="https://twitter.com/user/status/123456789&#10;https://x.com/user/status/987654321"
+                        class="w-full p-3 border rounded-lg font-mono text-sm mb-3"
+                    ></textarea>
+                    <button onclick="processBulkUrls()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700">
+                        ➕ Add to Queue
+                    </button>
+                </div>
+
+                <!-- Manage Keyword Packs -->
+                <div class="bg-white rounded-lg shadow p-6 mt-6">
+                    <h3 class="text-lg font-bold mb-4">Manage Keyword Packs</h3>
+                    <div class="space-y-2 mb-4" id="manage-packs"></div>
+                    
+                    <div class="border-t pt-4 space-y-3">
+                        <input 
+                            type="text" 
+                            id="new-pack-name" 
+                            placeholder="Pack name"
+                            class="w-full p-2 border rounded"
+                        >
+                        <input 
+                            type="text" 
+                            id="new-pack-keywords" 
+                            placeholder="Keywords (comma separated)"
+                            class="w-full p-2 border rounded"
+                        >
+                        <button onclick="addKeywordPack()" class="w-full bg-green-600 text-white py-2 rounded font-medium hover:bg-green-700">
+                            ➕ Add Pack
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Queue View -->
+            <div id="view-queue" class="hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Your Queue</h2>
+                    <div class="flex gap-3">
+                        <button onclick="clearCompleted()" class="text-sm text-gray-600 hover:text-gray-900">
+                            Clear completed (<span id="completed-count">0</span>)
+                        </button>
+                        <button onclick="exportData()" class="text-sm text-blue-600 hover:text-blue-800">
+                            💾 Export
+                        </button>
+                    </div>
+                </div>
+
+                <div id="queue-empty" class="bg-white rounded-lg shadow p-12 text-center">
+                    <div class="text-6xl mb-4">📭</div>
+                    <h3 class="text-xl font-bold mb-2">Queue is empty</h3>
+                    <p class="text-gray-600 mb-4">Search for tweets and add them to get started</p>
+                    <button onclick="showView('search')" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                        Go to Search
+                    </button>
+                </div>
+
+                <div id="queue-list" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed'));
+            });
+        }
+    </script>
+</body>
+</html>
